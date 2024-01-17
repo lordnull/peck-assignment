@@ -9,7 +9,39 @@ defmodule Fmft.Datastore do
   @default_file_path "Mobile_Food_Facility_Permit.csv"
 
   # Easy way to define the state for this module's agent.
-  defstruct [file_path: @default_file_path, data_store: %{}]
+  defstruct [file_path: @default_file_path, datastore: %{}]
+
+  def find_trucks(agent_pid, latitude, logitude) do
+    # I have a hunch it will take less time to do the calculation of
+    # distance than to copy the state to whatever is requesting the
+    # info. Refactoring to use ets makes it a moot point, though.
+    Agent.get(agent_pid, fn state -> find_trucks_internal(latitude, logitude, state.datastore) end)
+  end
+
+  defp find_trucks_internal(latitude, longitude, data_store) do
+    Enum.sort_by(data_store, fn {_id, data} ->
+      truck_lat = safe_lat_or_long(List.keyfind(data, "Latitude", 0, 10_000.0))
+      truck_long = safe_lat_or_long(List.keyfind(data, "Longitude", 0, 10_000.0))
+      dist_squared(latitude, longitude, truck_lat, truck_long)
+    end,
+    &(&1 >= &2))
+  end
+
+  defp safe_lat_or_long({_, string}) do
+    safe_lat_or_long(string)
+  end
+  defp safe_lat_or_long(string) do
+    case Float.parse(string) do
+      :error ->
+        10_000.0
+      {f, _} ->
+        f
+    end
+  end
+
+  defp dist_squared(lat1, long1, lat2, long2) do
+    Float.pow((lat2 - lat1), 2) + Float.pow((long2 - long1), 2)
+  end
 
   # primarily a debug function to ensure the default file is
   # readable.
@@ -53,7 +85,7 @@ defmodule Fmft.Datastore do
       [] ->
         []
       [ header_names | tail ] ->
-        Enum.each(tail, fn e -> into_datastore(e, header_names, state) end)
+        Enum.reduce(tail, state, fn(e, state_acc) -> into_datastore(e, header_names, state_acc) end)
     end
   end
 
@@ -64,12 +96,12 @@ defmodule Fmft.Datastore do
   # syntax on the ets table to get exactly what we want.
   defp into_datastore(csv_row, header_names, state) do
     data_as_keylist = Enum.zip(header_names, csv_row)
-    %{data_store: datastore} = state
-    case List.keyfind(data_as_keylist, "locationid", 1) do
+    %{datastore: datastore} = state
+    case List.keyfind(data_as_keylist, "locationid", 0) do
       nil ->
         state
-      location_id ->
-        new_datastore = %{ datastore | location_id => data_as_keylist }
+      {_, location_id} ->
+        new_datastore = Map.put(datastore, location_id, data_as_keylist)
         %{ state | datastore: new_datastore}
     end
   end
