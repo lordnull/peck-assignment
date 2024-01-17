@@ -19,6 +19,8 @@ defmodule Fmft.Datastore do
   end
 
   defp find_trucks_internal(latitude, longitude, data_store) do
+    # A very basic sort of the dataset. Not bothering to do a square root for
+    # the exact distance because we don't need precise, just size comparison.
     Enum.sort_by(data_store, fn {_id, data} ->
       truck_lat = safe_lat_or_long(List.keyfind(data, "Latitude", 0, 10_000.0))
       truck_long = safe_lat_or_long(List.keyfind(data, "Longitude", 0, 10_000.0))
@@ -27,6 +29,9 @@ defmodule Fmft.Datastore do
     &(&1 >= &2))
   end
 
+  # If I gave myself more time, I would have done more to ensure the csv we
+  # imported initially was actually sanitized properly, thus containing
+  # a proper record with floats for the latitude and longitude.
   defp safe_lat_or_long({_, string}) do
     safe_lat_or_long(string)
   end
