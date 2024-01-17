@@ -24,3 +24,6 @@ fmft-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# vs code artifacts
+.elixir_ls

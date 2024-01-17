@@ -11,11 +11,16 @@ defmodule Fmft.Datastore do
   # Easy way to define the state for this module's agent.
   defstruct [file_path: @default_file_path, datastore: %{}]
 
-  def find_trucks(agent_pid, latitude, logitude) do
+  @doc """
+  Given a datastore pid, and a latitude and longitude, return a
+  locationid -> location data list sorted by how far the truck is. The
+  closter trucks are listed first.
+  """
+  def find_trucks(agent_pid, latitude, longitude) do
     # I have a hunch it will take less time to do the calculation of
     # distance than to copy the state to whatever is requesting the
     # info. Refactoring to use ets makes it a moot point, though.
-    Agent.get(agent_pid, fn state -> find_trucks_internal(latitude, logitude, state.datastore) end)
+    Agent.get(agent_pid, fn state -> find_trucks_internal(latitude, longitude, state.datastore) end)
   end
 
   defp find_trucks_internal(latitude, longitude, data_store) do
